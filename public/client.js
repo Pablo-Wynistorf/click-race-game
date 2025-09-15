@@ -8,9 +8,19 @@ const timerEl = document.getElementById("timer");
 const boardEl = document.getElementById("board");
 const lobbyDiv = document.getElementById("lobbyAttendees");
 const gameEl = document.getElementById("game");
+const qrEl = document.getElementById("qrcode");
 
 let running = false;
 let endsAt = 0;
+
+function renderQr() {
+  if (!qrEl || !window.QRCode) return;
+  const canvas = document.createElement("canvas");
+  QRCode.toCanvas(canvas, window.location.href, { width: 128 }, () => {});
+  qrEl.innerHTML = "";
+  qrEl.appendChild(canvas);
+}
+renderQr();
 
 function escapeHtml(s) {
   return (s || "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
