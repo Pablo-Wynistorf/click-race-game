@@ -1,13 +1,19 @@
 import express from "express";
 import helmet from "helmet";
 import { nanoid } from "nanoid";
+import cookieParser from "cookie-parser";
 import xss from "xss";
-import { WebSocketServer } from "ws";
+import path from "path";
+import { fileURLToPath } from "url";
+import { WebSocketServer, WebSocket } from "ws";
 
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { DynamoDBDocumentClient, BatchWriteCommand, QueryCommand, ScanCommand } from "@aws-sdk/lib-dynamodb";
 
 import { sanitizeName } from "./profanity.js";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const {
   PORT = 3000,
@@ -17,9 +23,54 @@ const {
 } = process.env;
 
 const app = express();
+app.use(cookieParser());
+
+app.use((req, res, next) => {
+  if (req.cookies?.banned === "true" && !req.path.startsWith("/denied")) {
+    return res.redirect("/denied");
+  }
+  next();
+});
+
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(express.json());
-app.use(express.static("public"));
+
+let players = new Map();
+let lobbyPlayers = new Map();
+
+app.use(express.static(path.join(__dirname, "public")));
+
+app.get("/api/getAttendees", (req, res) => {
+  const attendees = [...lobbyPlayers.values()];
+  res.send(attendees);
+});
+
+function blockUser(userId) {
+  const target = [...players.entries(), ...lobbyPlayers.entries()]
+    .find(([ws, p]) => p.userId === userId);
+
+  if (target) {
+    const [ws] = target;
+    if (ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: "banned" }));
+    }
+    players.delete(ws);
+    lobbyPlayers.delete(ws);
+    broadcastLobby();
+    broadcastLeaderboard();
+  }
+}
+
+app.post("/api/ban/:id", (req, res) => {
+  const { id } = req.params;
+  blockUser(id);
+  res.json({ ok: true });
+});
+
+app.get("/ban", (req, res) => {
+  res.cookie("banned", "true", { httpOnly: false, maxAge: 1000 * 60 * 60 * 24 });
+  res.redirect("/denied");
+});
 
 const server = app.listen(PORT, () => console.log(`Listening on port ${PORT}`));
 const wss = new WebSocketServer({ server });
@@ -27,7 +78,7 @@ const wss = new WebSocketServer({ server });
 function broadcastActiveSessions() {
   const msg = JSON.stringify({ type: "active_sessions", data: wss.clients.size });
   wss.clients.forEach(ws => {
-    if (ws.readyState === ws.OPEN) ws.send(msg);
+    if (ws.readyState === WebSocket.OPEN) ws.send(msg);
   });
 }
 
@@ -36,16 +87,13 @@ const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({ region: AWS_REGION 
 let raceId = null;
 let raceEndsAt = 0;
 let running = false;
-
-let players = new Map();
-let lobbyPlayers = new Map();
 let nextRaceStartAt = null;
 let raceTimer = null;
 
 function broadcast(type, data) {
   const msg = JSON.stringify({ type, data });
   [...players.keys(), ...lobbyPlayers.keys()].forEach(ws => {
-    if (ws.readyState === ws.OPEN) ws.send(msg);
+    if (ws.readyState === WebSocket.OPEN) ws.send(msg);
   });
 }
 
@@ -149,11 +197,13 @@ wss.on("connection", ws => {
       const { type, data } = JSON.parse(msg);
       if (type === "set_name") {
         const clean = sanitizeName(String(data));
-        if (!clean) return ws.send(JSON.stringify({ type: "error", data: "Invalid name" }));
+        if (!clean || !clean.trim()) {
+          return ws.send(JSON.stringify({ type: "error", data: "Invalid name" }));
+        }
         const safe = xss(clean);
         const normalized = safe.toLowerCase();
-        const taken = [...players.values(), ...lobbyPlayers.values()].some(p =>
-          p.name && p.name.toLowerCase() === normalized
+        const taken = [...players.values(), ...lobbyPlayers.values()].some(
+          p => p.name && p.name.toLowerCase() === normalized
         );
         if (taken) return ws.send(JSON.stringify({ type: "error", data: "Name already taken" }));
         const p = players.get(ws);

@@ -69,6 +69,10 @@ function updateTimer() {
 ws.onmessage = e => {
   const { type, data } = JSON.parse(e.data);
 
+  if (type === "banned") {
+    window.location = "/ban";
+  }
+
   if (type === "name_ok") {
     nameStatus.textContent = `Name set: ${data}`;
     nameStatus.className = "text-sm text-emerald-400";

@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <title>Cockpit</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-slate-950 text-slate-100 p-6">
+    <h1 class="text-2xl font-bold mb-4">Cockpit – Nächste Spieler</h1>
+    <ul id="attendees" class="space-y-2"></ul>
+
+    <script>
+        const list = document.getElementById("attendees");
+
+        // Attendees live updaten
+        const ws = new WebSocket(`ws://${location.host}`);
+        ws.onmessage = (ev) => {
+            const msg = JSON.parse(ev.data);
+            if (msg.type === "lobby_update") {
+                render(msg.data.attendees);
+            }
+        };
+
+        function render(attendees) {
+            list.innerHTML = attendees.map(p => `
+                <li class="flex justify-between items-center bg-slate-900 px-4 py-2 rounded">
+                    <span>${p.name}</span>
+                    <button onclick="blockPlayer('${p.userId}')"
+                        class="px-3 py-1 text-sm bg-rose-600 hover:bg-rose-500 rounded">
+                        Blockieren
+                    </button>
+                </li>
+            `).join("");
+        }
+
+        function blockPlayer(id) {
+            fetch("/api/ban/" + id, { method: "POST" });
+        }
+    </script>
+</body>
+
+</html>
