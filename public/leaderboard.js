@@ -5,11 +5,17 @@ function escapeHtml(s) {
 }
 
 function renderBoard(top) {
-  boardEl.innerHTML = top.map((p,i)=>
-    `<div class="flex justify-between px-4 py-2 bg-slate-900"><span>${i+1}. ${escapeHtml(p.name||"Player")}</span><span>${p.score} - ${new Date(p.finishedAt).toLocaleString()}</span></div>`
+  boardEl.innerHTML = top.map((p, i) =>
+    `<tr>
+      <td class="px-4 py-2">${i + 1}</td>
+      <td class="px-4 py-2">${escapeHtml(p.name || "Player")}</td>
+      <td class="px-4 py-2">${p.score}</td>
+      <td class="px-4 py-2">${p.raceId}</td>
+      <td class="px-4 py-2">${new Date(p.finishedAt).toLocaleString()}</td>
+    </tr>`
   ).join("");
   if (top.length === 0) {
-    boardEl.innerHTML = '<div class="px-4 py-6 text-slate-500 text-center bg-slate-900">No results yet.</div>';
+    boardEl.innerHTML = '<tr><td colspan="5" class="px-4 py-6 text-slate-500 text-center">No results yet.</td></tr>';
   }
 }
 
