@@ -1,4 +1,6 @@
-const ws = new WebSocket(`ws://${location.host}`);
+const protocol = location.protocol === "https:" ? "wss:" : "ws:";
+const ws = new WebSocket(`${protocol}//${location.host}`);
+
 
 const nameInput = document.getElementById("nameInput");
 const setNameBtn = document.getElementById("setNameBtn");
@@ -32,14 +34,14 @@ function renderBoard(top, duration) {
     const elapsed = running ? Math.max(0, (duration * 1000 - (endsAt - Date.now())) / 1000) : duration;
     const cps = elapsed > 0 ? (p.score / elapsed).toFixed(2) : "0.00";
     return `<div class="px-4 py-2 bg-slate-900">
-      <div class="flex justify-between text-sm sm:text-base">
-        <span>${i + 1}. ${escapeHtml(p.name || "Player")}</span>
-        <span>${p.score} (${cps}/s)</span>
-      </div>
-      <div class="w-full bg-slate-800 rounded h-2 mt-1">
-        <div class="bg-emerald-500 h-2 rounded" style="width:${pct}%"></div>
-      </div>
-    </div>`;
+          <div class="flex justify-between text-sm sm:text-base">
+            <span>${i + 1}. ${escapeHtml(p.name || "Player")}</span>
+            <span>${p.score} (${cps}/s)</span>
+          </div>
+          <div class="w-full bg-slate-800 rounded h-2 mt-1">
+            <div class="bg-emerald-500 h-2 rounded" style="width:${pct}%"></div>
+          </div>
+        </div>`;
   }).join("");
 
   if (top.length === 0) {
@@ -85,9 +87,9 @@ ws.onmessage = e => {
   if (type === "lobby_update") {
     if (data.startsAt) {
       const ms = Math.max(0, data.startsAt - Date.now());
-      timerEl.textContent = `Next race in ${(ms / 1000).toFixed(0)}s`;
+      timerEl.textContent = `Nächstes Rennen beginnt in ${(ms / 1000).toFixed(0)}s`;
     } else {
-      timerEl.textContent = "Waiting for players...";
+      timerEl.textContent = "Warte auf Spieler...";
     }
     lobbyDiv.innerHTML = data.attendees.map(p =>
       `<div class="px-3 py-1 bg-slate-800 rounded">${escapeHtml(p.name)}</div>`
@@ -105,14 +107,23 @@ ws.onmessage = e => {
     endsAt = 0;
 
     // Reset UI
-    timerEl.textContent = "Race ended! Waiting for new players...";
+    timerEl.textContent = "Rennen beendet!";
     gameEl.classList.add("hidden");
 
-    // Allow user to join again
-    if (nameForm) {
-      nameForm.classList.remove("hidden");
-      nameInput.value = "";
+    // Show Play Again button
+    const playAgainBtn = document.createElement("button");
+    playAgainBtn.textContent = "Nochmal spielen";
+    playAgainBtn.className =
+      "mt-4 px-4 py-2 rounded-lg bg-sky-600 hover:bg-sky-500 font-semibold";
+    playAgainBtn.onclick = () => location.reload();
+
+    // Avoid duplicates if multiple race_ended events
+    if (!document.getElementById("playAgainBtn")) {
+      playAgainBtn.id = "playAgainBtn";
+      timerEl.insertAdjacentElement("afterend", playAgainBtn);
     }
+
+    // Allow user to join again
     nameStatus.textContent = "";
     nameStatus.className = "text-sm";
 

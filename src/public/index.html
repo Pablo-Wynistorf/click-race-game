@@ -17,7 +17,7 @@
       </button>
       <a href="/leaderboard.html"
          class="text-sm px-3 py-1 rounded bg-sky-600 hover:bg-sky-500">
-        Global Leaderboard
+        Globale Rangliste
       </a>
     </div>
   </header>
@@ -27,7 +27,7 @@
     <!-- Main Content -->
     <div class="flex-1 max-w-3xl mx-auto p-6">
       <p class="text-slate-400 mb-4">
-        Set your name, wait for the race, and click as fast as you can in 10 seconds.
+        Setze deinen Namen, um am nächsten Rennen teilzunehmen! Klicke so oft du kannst, wenn das Rennen beginnt. Die besten Spieler werden in der Live-Rangliste angezeigt.
       </p>
 
       <!-- Online Users -->
@@ -36,7 +36,7 @@
           <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
           <span class="relative inline-flex rounded-full h-4 w-4 bg-emerald-500"></span>
         </span>
-        Online Users: <span id="activeSessionsCount" class="ml-1">0</span>
+        Spieler Online: <span id="activeSessionsCount" class="ml-1">0</span>
       </div>
 
       <!-- Lobby -->
@@ -46,12 +46,12 @@
                  class="w-64 px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 focus:outline-none" />
           <button id="setNameBtn"
                   class="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500">
-            Play Now
+            Spielen
           </button>
         </div>
         <div class="text-sm" id="nameStatus"></div>
         <div id="timer" class="text-lg text-slate-300"></div>
-        <h3 class="text-lg font-semibold mt-4">Attendees for Next Race</h3>
+        <h3 class="text-lg font-semibold mt-4">Teilnehmer für das nächste Rennen</h3>
         <div id="lobbyAttendees" class="mt-2 flex flex-wrap gap-2"></div>
       </div>
 
@@ -61,19 +61,19 @@
                 class="w-full h-56 rounded-2xl bg-gradient-to-r from-fuchsia-600 to-pink-600 hover:from-fuchsia-500 hover:to-pink-500 active:scale-95 transition text-3xl font-bold tracking-wide shadow-lg">
           CLICK!
         </button>
-        <div class="mt-3 text-center text-slate-300">Spam the button while the timer runs.</div>
+        <div class="mt-3 text-center text-slate-300">Klicke auf den Knopf, um zu gewinnen!</div>
       </div>
 
-      <!-- Live Race -->
+      <!-- Live Rennen -->
       <div class="mt-10">
-        <h2 class="text-2xl font-semibold mb-3">Live Race</h2>
+        <h2 class="text-2xl font-semibold mb-3">Live Rennen</h2>
         <div id="board" class="divide-y divide-slate-800 border border-slate-800 rounded-xl overflow-hidden"></div>
       </div>
     </div>
 
     <!-- QR Sidebar (desktop only) -->
     <aside class="hidden lg:flex w-80 bg-slate-900 border-l border-slate-800 p-6 flex-col items-center">
-      <h3 class="text-lg font-semibold mb-4">Scan to Join</h3>
+      <h3 class="text-lg font-semibold mb-4">Scannen, um beizutreten</h3>
       <div id="qrcodeDesktop" class="bg-white p-3 rounded-lg shadow"></div>
     </aside>
   </main>
@@ -82,7 +82,7 @@
   <div id="qrDrawer"
        class="fixed inset-0 bg-black/70 hidden items-center justify-center z-50">
     <div class="bg-white p-4 rounded-lg">
-      <h3 class="text-black mb-3 font-semibold">Scan to Join</h3>
+      <h3 class="text-black mb-3 font-semibold">Scannen, um beizutreten</h3>
       <div id="qrcodeMobile" class="flex justify-center"></div>
       <button id="closeQrBtn"
               class="mt-4 px-3 py-1 rounded bg-slate-800 text-white w-full">
@@ -92,6 +92,6 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.0/build/qrcode.min.js"></script>
-  <script src="client.js"></script>
+  <script src="/client.js"></script>
 </body>
 </html>
