@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Click Race</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="min-h-screen bg-slate-950 text-slate-100">
+  <div class="max-w-3xl mx-auto p-6">
+    <h1 class="text-3xl font-bold mb-2">⚡ Click Race</h1>
+    <p class="text-slate-400 mb-6">Set your name, wait for the race and click as fast as you can in 10 seconds.</p>
+
+    <div id="lobby" class="mb-6 space-y-3">
+      <div class="flex items-center gap-3">
+        <input id="nameInput" type="text" maxlength="24" placeholder="Your name"
+               class="w-64 px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 focus:outline-none" />
+        <button id="setNameBtn" class="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500">
+          Save name
+        </button>
+      </div>
+      <div class="text-sm" id="nameStatus"></div>
+      <div id="timer" class="text-lg text-slate-300"></div>
+      <h3 class="text-lg font-semibold mt-4">Attendees for Next Race</h3>
+      <div id="lobbyAttendees" class="mt-2 space-y-1"></div>
+    </div>
+
+    <div id="game" class="hidden">
+      <button id="clickBtn"
+              class="w-full h-44 rounded-2xl bg-fuchsia-600 hover:bg-fuchsia-500 active:scale-95 transition text-2xl font-semibold">
+        CLICK!
+      </button>
+      <div class="mt-3 text-center text-slate-300">Spam the button while the timer runs.</div>
+    </div>
+
+    <div class="mt-8">
+      <h2 class="text-2xl font-semibold mb-3">Leaderboard</h2>
+      <div id="board" class="divide-y divide-slate-800 border border-slate-800 rounded-xl overflow-hidden"></div>
+    </div>
+  </div>
+
+  <script src="client.js"></script>
+</body>
+</html>
