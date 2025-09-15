@@ -21,7 +21,7 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v5
         with:
-          context: .
+          context: ./src
           push: true
           tags: |
             pablo06/click-race-game:latest

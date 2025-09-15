@@ -12,8 +12,7 @@ import { sanitizeName } from "./profanity.js";
 const {
   PORT = 3000,
   AWS_REGION = "us-east-1",
-  DDB_TABLE_SCORES = "ClickRaceScores",
-  DDB_TABLE_EVENTS = "ClickRaceEvents",
+  DDB_TABLE = "ClickRaceData",
   RACE_DURATION_SECONDS = 10
 } = process.env;
 
@@ -68,13 +67,6 @@ function broadcastLeaderboard() {
   });
 }
 
-async function logEvent(type, payload) {
-  await ddb.send(new PutCommand({
-    TableName: DDB_TABLE_EVENTS,
-    Item: { pk: `race#${raceId || "none"}`, ts: Date.now(), type, payload }
-  }));
-}
-
 function scheduleRaceIfNeeded() {
   if (!nextRaceStartAt && lobbyPlayers.size > 0) {
     nextRaceStartAt = Date.now() + 30_000;
@@ -122,12 +114,20 @@ async function endRace() {
 
   const finishedAt = Date.now();
   const items = [...players.values()].map(p => ({
-    PutRequest: { Item: { raceId, negScore: -p.score, userId: p.userId, name: p.name, score: p.score, finishedAt } }
+    PutRequest: {
+      Item: {
+        raceId: `${raceId}`,
+        playerId: `player#${p.userId}`,
+        name: p.name,
+        score: p.score,
+        finishedAt,
+        negScore: -p.score
+      }
+    }
   }));
   for (let i = 0; i < items.length; i += 25) {
-    await ddb.send(new BatchWriteCommand({ RequestItems: { [DDB_TABLE_SCORES]: items.slice(i, i + 25) } }));
+    await ddb.send(new BatchWriteCommand({ RequestItems: { [DDB_TABLE]: items.slice(i, i + 25) } }));
   }
-  await logEvent("race_ended", { raceId });
 
   players.clear();
   raceId = null;
@@ -186,17 +186,17 @@ wss.on("connection", ws => {
 
 app.get("/api/race/:raceId/top", async (req, res) => {
   const q = await ddb.send(new QueryCommand({
-    TableName: DDB_TABLE_SCORES,
-    KeyConditionExpression: "raceId = :r",
-    ExpressionAttributeValues: { ":r": req.params.raceId },
+    TableName: DDB_TABLE,
+    KeyConditionExpression: "raceId = :r AND begins_with(playerId, :p)",
+    ExpressionAttributeValues: { ":r": `${req.params.raceId}`, ":p": "player#" },
     Limit: 20
   }));
   res.json({ raceId: req.params.raceId, top: q.Items || [] });
 });
 
 app.get("/api/leaderboard", async (req, res) => {
-  const scan = await ddb.send(new ScanCommand({ TableName: DDB_TABLE_SCORES }));
-  const items = scan.Items || [];
+  const scan = await ddb.send(new ScanCommand({ TableName: DDB_TABLE }));
+  const items = scan.Items?.filter(i => i.playerId.startsWith("player#")) || [];
   const top = items.sort((a, b) => b.score - a.score).slice(0, 20);
   res.json({ top });
 });
