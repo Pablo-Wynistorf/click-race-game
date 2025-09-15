@@ -10,7 +10,13 @@
   <div class="max-w-3xl mx-auto p-6">
     <h1 class="text-3xl font-bold mb-2">⚡ Click Race</h1>
     <p class="text-slate-400">Set your name, wait for the race and click as fast as you can in 10 seconds.</p>
-    <p id="activeSessions" class="text-sm text-slate-400 mb-6">Active sessions: 0</p>
+    <div id="activeSessions" class="text-lg text-slate-200 mb-6 flex items-center">
+      <span class="relative flex h-4 w-4 mr-2">
+        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+        <span class="relative inline-flex rounded-full h-4 w-4 bg-emerald-500"></span>
+      </span>
+      Online Users: <span id="activeSessionsCount" class="ml-1">0</span>
+    </div>
 
     <div id="lobby" class="mb-6 space-y-3">
       <div class="flex items-center gap-3">
@@ -42,7 +48,10 @@
       <div id="board" class="divide-y divide-slate-800 border border-slate-800 rounded-xl overflow-hidden"></div>
     </div>
 
-    <div id="qrcode" class="mt-8 flex justify-center"></div>
+    <button id="showQrBtn" class="hidden md:flex fixed right-0 top-1/2 -translate-y-1/2 px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-l-lg">Reveal QR code</button>
+    <div id="qrModal" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center">
+      <div id="qrcode" class="bg-white p-4 rounded-lg"></div>
+    </div>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.0/build/qrcode.min.js"></script>

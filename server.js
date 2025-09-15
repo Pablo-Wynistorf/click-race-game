@@ -63,6 +63,7 @@ function broadcastLeaderboard() {
     raceId,
     running,
     endsInMs: Math.max(0, raceEndsAt - Date.now()),
+    duration: RACE_DURATION_SECONDS,
     top
   });
 }
