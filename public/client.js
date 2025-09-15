@@ -3,6 +3,7 @@ const ws = new WebSocket(`ws://${location.host}`);
 const nameInput = document.getElementById("nameInput");
 const setNameBtn = document.getElementById("setNameBtn");
 const nameStatus = document.getElementById("nameStatus");
+const nameForm = document.getElementById("nameForm");
 const clickBtn = document.getElementById("clickBtn");
 const timerEl = document.getElementById("timer");
 const boardEl = document.getElementById("board");
@@ -80,6 +81,7 @@ ws.onmessage = e => {
   if (type === "name_ok") {
     nameStatus.textContent = `Name set: ${data}`;
     nameStatus.className = "text-sm text-emerald-400";
+    if (nameForm) nameForm.classList.add("hidden");
   }
   if (type === "error") {
     nameStatus.textContent = data;
@@ -106,6 +108,12 @@ ws.onmessage = e => {
     running = false;
     timerEl.textContent = "Race ended!";
     gameEl.classList.add("hidden");
+    if (nameForm) {
+      nameForm.classList.remove("hidden");
+      nameInput.value = "";
+    }
+    nameStatus.textContent = "";
+    nameStatus.className = "text-sm";
   }
   if (type === "leaderboard") {
     running = data.running;

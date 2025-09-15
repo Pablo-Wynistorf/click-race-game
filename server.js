@@ -151,6 +151,11 @@ wss.on("connection", ws => {
         const clean = sanitizeName(String(data));
         if (!clean) return ws.send(JSON.stringify({ type: "error", data: "Invalid name" }));
         const safe = xss(clean);
+        const normalized = safe.toLowerCase();
+        const taken = [...players.values(), ...lobbyPlayers.values()].some(p =>
+          p.name && p.name.toLowerCase() === normalized
+        );
+        if (taken) return ws.send(JSON.stringify({ type: "error", data: "Name already taken" }));
         const p = players.get(ws);
         p.name = safe;
         lobbyPlayers.set(ws, { userId: p.userId, name: p.name });
