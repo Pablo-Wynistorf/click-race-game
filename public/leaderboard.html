@@ -10,7 +10,21 @@
   <div class="max-w-3xl mx-auto p-6">
     <a href="/" class="text-sky-400 hover:underline">&larr; Back to game</a>
     <h1 class="text-3xl font-bold mb-4">Global Leaderboard</h1>
-    <div id="board" class="divide-y divide-slate-800 border border-slate-800 rounded-xl overflow-hidden"></div>
+    <p class="mb-4 text-slate-300">Top results from every race. Columns show placement, player name, score, the race where it happened and when it finished.</p>
+    <div class="overflow-x-auto">
+      <table class="min-w-full divide-y divide-slate-800 border border-slate-800 rounded-xl overflow-hidden">
+        <thead class="bg-slate-900">
+          <tr>
+            <th class="px-4 py-2 text-left">Placement</th>
+            <th class="px-4 py-2 text-left">Player</th>
+            <th class="px-4 py-2 text-left">Result</th>
+            <th class="px-4 py-2 text-left">Race ID</th>
+            <th class="px-4 py-2 text-left">Time</th>
+          </tr>
+        </thead>
+        <tbody id="board" class="bg-slate-900"></tbody>
+      </table>
+    </div>
   </div>
 
   <script src="leaderboard.js"></script>
