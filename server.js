@@ -5,7 +5,7 @@ import xss from "xss";
 import { WebSocketServer } from "ws";
 
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import { DynamoDBDocumentClient, PutCommand, BatchWriteCommand, QueryCommand } from "@aws-sdk/lib-dynamodb";
+import { DynamoDBDocumentClient, PutCommand, BatchWriteCommand, QueryCommand, ScanCommand } from "@aws-sdk/lib-dynamodb";
 
 import { sanitizeName } from "./profanity.js";
 
@@ -60,13 +60,6 @@ function broadcastLeaderboard() {
   });
 }
 
-async function persistScore({ raceId, userId, name, score }) {
-  await ddb.send(new PutCommand({
-    TableName: DDB_TABLE_SCORES,
-    Item: { raceId, negScore: -score, userId, name, score, updatedAt: Date.now() }
-  }));
-}
-
 async function logEvent(type, payload) {
   await ddb.send(new PutCommand({
     TableName: DDB_TABLE_EVENTS,
@@ -119,8 +112,9 @@ async function endRace() {
   broadcast("race_ended", { raceId });
   broadcastLeaderboard();
 
+  const finishedAt = Date.now();
   const items = [...players.values()].map(p => ({
-    PutRequest: { Item: { raceId, negScore: -p.score, userId: p.userId, name: p.name, score: p.score, updatedAt: Date.now() } }
+    PutRequest: { Item: { raceId, negScore: -p.score, userId: p.userId, name: p.name, score: p.score, finishedAt } }
   }));
   for (let i = 0; i < items.length; i += 25) {
     await ddb.send(new BatchWriteCommand({ RequestItems: { [DDB_TABLE_SCORES]: items.slice(i, i + 25) } }));
@@ -161,7 +155,6 @@ wss.on("connection", ws => {
         if (p.lastClickTs && now - p.lastClickTs < 20) return;
         p.lastClickTs = now;
         p.score += 1;
-        persistScore({ raceId, userId: p.userId, name: p.name, score: p.score }).catch(() => {});
         broadcastLeaderboard();
       }
     } catch {}
@@ -183,4 +176,11 @@ app.get("/api/race/:raceId/top", async (req, res) => {
     Limit: 20
   }));
   res.json({ raceId: req.params.raceId, top: q.Items || [] });
+});
+
+app.get("/api/leaderboard", async (req, res) => {
+  const scan = await ddb.send(new ScanCommand({ TableName: DDB_TABLE_SCORES }));
+  const items = scan.Items || [];
+  const top = items.sort((a, b) => b.score - a.score).slice(0, 20);
+  res.json({ top });
 });
