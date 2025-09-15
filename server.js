@@ -25,6 +25,13 @@ app.use(express.static("public"));
 const server = app.listen(PORT, () => console.log(`Click Race running on :${PORT}`));
 const wss = new WebSocketServer({ server });
 
+function broadcastActiveSessions() {
+  const msg = JSON.stringify({ type: "active_sessions", data: wss.clients.size });
+  wss.clients.forEach(ws => {
+    if (ws.readyState === ws.OPEN) ws.send(msg);
+  });
+}
+
 const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({ region: AWS_REGION }));
 
 let raceId = null;
@@ -134,6 +141,8 @@ wss.on("connection", ws => {
   const userId = `u_${nanoid(6)}`;
   players.set(ws, { userId, name: null, score: 0, lastClickTs: 0 });
 
+  broadcastActiveSessions();
+
   ws.on("message", msg => {
     try {
       const { type, data } = JSON.parse(msg);
@@ -165,6 +174,7 @@ wss.on("connection", ws => {
     lobbyPlayers.delete(ws);
     broadcastLobby();
     broadcastLeaderboard();
+    broadcastActiveSessions();
   });
 });
 

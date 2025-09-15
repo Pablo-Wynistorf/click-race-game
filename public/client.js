@@ -9,6 +9,7 @@ const boardEl = document.getElementById("board");
 const lobbyDiv = document.getElementById("lobbyAttendees");
 const gameEl = document.getElementById("game");
 const qrEl = document.getElementById("qrcode");
+const activeSessionsEl = document.getElementById("activeSessions");
 
 let running = false;
 let endsAt = 0;
@@ -61,6 +62,9 @@ ws.onmessage = e => {
   if (type === "error") {
     nameStatus.textContent = data;
     nameStatus.className = "text-sm text-rose-400";
+  }
+  if (type === "active_sessions") {
+    activeSessionsEl.textContent = `Active sessions: ${data}`;
   }
   if (type === "lobby_update") {
     if (data.startsAt) {
