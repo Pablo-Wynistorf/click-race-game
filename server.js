@@ -76,7 +76,7 @@ async function logEvent(type, payload) {
 
 function scheduleRaceIfNeeded() {
   if (!nextRaceStartAt && lobbyPlayers.size > 0) {
-    nextRaceStartAt = Date.now() + 60_000;
+    nextRaceStartAt = Date.now() + 30_000;
     raceTimer = setInterval(checkRaceStart, 1000);
   }
 }

@@ -1,11 +1,11 @@
 # Click Race Game
 
-A simple realtime click race game built with Express and WebSockets. Players set a name, wait for a race and click as fast as possible during a 10 second window. A new race starts every minute if at least one player is waiting, and a live leaderboard is shared by all participants.
+A simple realtime click race game built with Express and WebSockets. Players set a name, wait for a race and click as fast as possible during a 10 second window. A new race starts 30 seconds after the first player joins the lobby, and a live leaderboard is shared by all participants.
 
 ## Features
 
 - Realtime lobby showing attendees for the next race
-- Automatic race start every minute when players are waiting
+- Automatic race start 30 seconds after the first player joins
 - Profanity-filtered nicknames
 - Scores stored in DynamoDB
 
