@@ -5,7 +5,7 @@ import xss from "xss";
 import { WebSocketServer } from "ws";
 
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import { DynamoDBDocumentClient, PutCommand, BatchWriteCommand, QueryCommand, ScanCommand } from "@aws-sdk/lib-dynamodb";
+import { DynamoDBDocumentClient, BatchWriteCommand, QueryCommand, ScanCommand } from "@aws-sdk/lib-dynamodb";
 
 import { sanitizeName } from "./profanity.js";
 
