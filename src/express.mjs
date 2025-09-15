@@ -22,7 +22,7 @@ app.use(helmet({ contentSecurityPolicy: false }));
 app.use(express.json());
 app.use(express.static("public"));
 
-const server = app.listen(PORT, () => console.log(`Click Race running on :${PORT}`));
+const server = app.listen(PORT, () => console.log(`Listening on port ${PORT}`));
 const wss = new WebSocketServer({ server });
 
 function broadcastActiveSessions() {
