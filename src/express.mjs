@@ -169,7 +169,6 @@ async function endRace() {
         name: p.name,
         score: p.score,
         finishedAt,
-        negScore: -p.score
       }
     }
   }));
