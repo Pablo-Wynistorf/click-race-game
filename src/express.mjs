@@ -16,7 +16,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const {
-  PORT = 3000,
+  PORT = 80,
   AWS_REGION = "us-east-1",
   DDB_TABLE = "ClickRaceData",
   RACE_DURATION_SECONDS = 10
