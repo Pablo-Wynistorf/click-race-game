@@ -4,7 +4,7 @@
   "type": "module",
   "main": "express.mjs",
   "scripts": {
-    "start": "node server.js",
+    "start": "node express.mjs",
     "test": "echo 'No tests specified'"
   },
   "dependencies": {
