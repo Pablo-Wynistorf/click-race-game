@@ -11,7 +11,7 @@ import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import {
   DynamoDBDocumentClient,
   BatchWriteCommand,
-  ScanCommand
+  QueryCommand
 } from "@aws-sdk/lib-dynamodb";
 import { v4 as uuidv4 } from "uuid";
 
@@ -301,6 +301,7 @@ async function persistRaceResults(results, finishedAt, currentRaceId) {
       PutRequest: {
         Item: {
           resultId: uuidv4(),
+          pk: "GLOBAL", // <-- add global PK for leaderboard GSI
           score: p.score,
           userId: p.userId,
           username:
@@ -360,77 +361,21 @@ async function endRace() {
   broadcastLobby();
 }
 
-async function fetchTopResults({ limit = 20, raceId } = {}) {
+async function fetchTopResults({ limit = 20 } = {}) {
   const sanitizedLimit = Number.isFinite(limit) && limit > 0
     ? Math.min(100, Math.floor(limit))
     : 20;
-  const top = [];
-  let lastEvaluatedKey;
 
-  const attributeNames = {
-    "#resultId": "resultId",
-    "#score": "score",
-    "#userId": "userId",
-    "#username": "username",
-    "#raceId": "raceId",
-    "#cps": "clicksPerSecond",
-    "#finishedAt": "finishedAt"
-  };
+  const res = await ddb.send(new QueryCommand({
+    TableName: DDB_TABLE,
+    IndexName: "GlobalLeaderboard", // <-- use GSI
+    KeyConditionExpression: "pk = :pk",
+    ExpressionAttributeValues: { ":pk": "GLOBAL" },
+    ScanIndexForward: false,
+    Limit: sanitizedLimit
+  }));
 
-  do {
-    const params = {
-      TableName: DDB_TABLE,
-      ProjectionExpression: "#resultId, #score, #userId, #username, #raceId, #cps, #finishedAt",
-      ExpressionAttributeNames: attributeNames,
-      ExclusiveStartKey: lastEvaluatedKey
-    };
-
-    if (raceId) {
-      params.FilterExpression = "#raceId = :raceId";
-      params.ExpressionAttributeValues = { ":raceId": raceId };
-    }
-
-    const res = await ddb.send(new ScanCommand(params));
-    const items = Array.isArray(res.Items) ? res.Items : [];
-
-    for (const item of items) {
-      if (!Number.isFinite(item?.score)) continue;
-      const username =
-        typeof item?.username === "string" && item.username.trim().length > 0
-          ? item.username
-          : typeof item?.name === "string" && item.name.trim().length > 0
-            ? item.name
-            : "Player";
-
-      const entry = {
-        resultId: item.resultId,
-        score: item.score,
-        userId: item.userId,
-        username,
-        raceId: item.raceId,
-        clicksPerSecond: Number.isFinite(item.clicksPerSecond)
-          ? item.clicksPerSecond
-          : calculateClicksPerSecond(item.score),
-        finishedAt: item.finishedAt
-      };
-
-      top.push(entry);
-    }
-
-    top.sort((a, b) => {
-      const scoreDiff = (b.score ?? 0) - (a.score ?? 0);
-      if (scoreDiff !== 0) return scoreDiff;
-      return (a.finishedAt ?? 0) - (b.finishedAt ?? 0);
-    });
-
-    if (top.length > sanitizedLimit) {
-      top.length = sanitizedLimit;
-    }
-
-    lastEvaluatedKey = res.LastEvaluatedKey;
-  } while (lastEvaluatedKey);
-
-  return top;
+  return res.Items ?? [];
 }
 
 function sendInitialState(ws) {
