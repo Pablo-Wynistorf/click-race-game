@@ -1,20 +1,37 @@
 const boardEl = document.getElementById("board");
-const RACE_DURATION_SECONDS = 10;
-
 function escapeHtml(s) {
   return (s || "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
 }
 
+function formatClicksPerSecond(entry) {
+  if (entry && typeof entry.clicksPerSecond === "number") {
+    return entry.clicksPerSecond.toFixed(2);
+  }
+  if (entry && typeof entry.score === "number") {
+    const duration = typeof entry.raceDuration === "number" && entry.raceDuration > 0
+      ? entry.raceDuration
+      : 10;
+    return (entry.score / duration).toFixed(2);
+  }
+  return "0.00";
+}
+
 function renderBoard(top) {
   boardEl.innerHTML = top.map((p, i) => {
-    const cps = (p.score / RACE_DURATION_SECONDS).toFixed(2);
+    const score = typeof p?.score === "number" ? p.score : 0;
+    const cps = formatClicksPerSecond({ ...p, score });
+    const name = p?.username || p?.name || "Player";
+    const finishedAt = typeof p?.finishedAt === "number"
+      ? new Date(p.finishedAt).toLocaleString()
+      : "";
+    const raceId = p?.raceId || "";
     return `<tr>
       <td class="px-4 py-2">${i + 1}</td>
-      <td class="px-4 py-2">${escapeHtml(p.name || "Player")}</td>
-      <td class="px-4 py-2">${p.score}</td>
+      <td class="px-4 py-2">${escapeHtml(name)}</td>
+      <td class="px-4 py-2">${score}</td>
       <td class="px-4 py-2">${cps}</td>
-      <td class="px-4 py-2">${p.raceId}</td>
-      <td class="px-4 py-2">${new Date(p.finishedAt).toLocaleString()}</td>
+      <td class="px-4 py-2">${escapeHtml(raceId)}</td>
+      <td class="px-4 py-2">${escapeHtml(finishedAt)}</td>
     </tr>`;
   }).join("");
   if (top.length === 0) {

@@ -11,10 +11,9 @@ import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import {
   DynamoDBDocumentClient,
   BatchWriteCommand,
-  GetCommand,
-  PutCommand,
-  QueryCommand
+  ScanCommand
 } from "@aws-sdk/lib-dynamodb";
+import { v4 as uuidv4 } from "uuid";
 
 import { sanitizeName } from "./profanity.js";
 
@@ -163,6 +162,12 @@ function computeLeaderboardTop() {
     .slice(0, 20);
 }
 
+function calculateClicksPerSecond(score) {
+  if (!Number.isFinite(score)) return 0;
+  const duration = RACE_DURATION > 0 ? RACE_DURATION : 1;
+  return Math.round((score / duration) * 1000) / 1000;
+}
+
 function scheduleStatsHide() {
   clearHideStatsTimer();
   if (!nextRaceStartAt) {
@@ -288,38 +293,32 @@ function startRace() {
   setTimeout(endRace, RACE_DURATION * 1000);
 }
 
-async function updateGlobalLeaderboard(results, finishedAt, currentRaceId) {
+async function persistRaceResults(results, finishedAt, currentRaceId) {
   if (!results.length) return;
-  const key = { raceId: "leaderboard", playerId: "global" };
-  const existing = await ddb.send(new GetCommand({ TableName: DDB_TABLE, Key: key }));
-  const existingTop = Array.isArray(existing.Item?.top) ? existing.Item.top : [];
-  const newEntries = results.map(p => ({
-    raceId: currentRaceId,
-    playerId: `player#${p.userId}`,
-    name: p.name,
-    score: p.score,
-    finishedAt
-  }));
-  const combined = [...existingTop, ...newEntries]
-    .filter(item => item && typeof item === "object");
-  combined.sort((a, b) => {
-    const diff = (b.score || 0) - (a.score || 0);
-    if (diff !== 0) return diff;
-    return (a.finishedAt || 0) - (b.finishedAt || 0);
-  });
-  const seen = new Set();
-  const limited = [];
-  for (const entry of combined) {
-    const dedupeKey = `${entry.raceId}#${entry.playerId}`;
-    if (seen.has(dedupeKey)) continue;
-    seen.add(dedupeKey);
-    limited.push(entry);
-    if (limited.length >= 100) break;
+  const putRequests = results
+    .filter(p => Number.isFinite(p.score))
+    .map(p => ({
+      PutRequest: {
+        Item: {
+          resultId: uuidv4(),
+          score: p.score,
+          userId: p.userId,
+          username:
+            typeof p.name === "string" && p.name.trim().length > 0 ? p.name : "Player",
+          raceId: currentRaceId,
+          clicksPerSecond: calculateClicksPerSecond(p.score),
+          finishedAt
+        }
+      }
+    }));
+
+  if (!putRequests.length) return;
+
+  for (let i = 0; i < putRequests.length; i += 25) {
+    await ddb.send(new BatchWriteCommand({
+      RequestItems: { [DDB_TABLE]: putRequests.slice(i, i + 25) }
+    }));
   }
-  await ddb.send(new PutCommand({
-    TableName: DDB_TABLE,
-    Item: { ...key, top: limited }
-  }));
 }
 
 async function endRace() {
@@ -344,23 +343,7 @@ async function endRace() {
   const results = [...activePlayers.values()];
   if (results.length) {
     try {
-      const items = results.map(p => ({
-        PutRequest: {
-          Item: {
-            raceId: `${currentRaceId}`,
-            playerId: `player#${p.userId}`,
-            name: p.name,
-            score: p.score,
-            finishedAt
-          }
-        }
-      }));
-      for (let i = 0; i < items.length; i += 25) {
-        await ddb.send(new BatchWriteCommand({
-          RequestItems: { [DDB_TABLE]: items.slice(i, i + 25) }
-        }));
-      }
-      await updateGlobalLeaderboard(results, finishedAt, currentRaceId);
+      await persistRaceResults(results, finishedAt, currentRaceId);
     } catch (err) {
       console.error("Failed to persist race results", err);
     }
@@ -375,6 +358,79 @@ async function endRace() {
     raceTimer = null;
   }
   broadcastLobby();
+}
+
+async function fetchTopResults({ limit = 20, raceId } = {}) {
+  const sanitizedLimit = Number.isFinite(limit) && limit > 0
+    ? Math.min(100, Math.floor(limit))
+    : 20;
+  const top = [];
+  let lastEvaluatedKey;
+
+  const attributeNames = {
+    "#resultId": "resultId",
+    "#score": "score",
+    "#userId": "userId",
+    "#username": "username",
+    "#raceId": "raceId",
+    "#cps": "clicksPerSecond",
+    "#finishedAt": "finishedAt"
+  };
+
+  do {
+    const params = {
+      TableName: DDB_TABLE,
+      ProjectionExpression: "#resultId, #score, #userId, #username, #raceId, #cps, #finishedAt",
+      ExpressionAttributeNames: attributeNames,
+      ExclusiveStartKey: lastEvaluatedKey
+    };
+
+    if (raceId) {
+      params.FilterExpression = "#raceId = :raceId";
+      params.ExpressionAttributeValues = { ":raceId": raceId };
+    }
+
+    const res = await ddb.send(new ScanCommand(params));
+    const items = Array.isArray(res.Items) ? res.Items : [];
+
+    for (const item of items) {
+      if (!Number.isFinite(item?.score)) continue;
+      const username =
+        typeof item?.username === "string" && item.username.trim().length > 0
+          ? item.username
+          : typeof item?.name === "string" && item.name.trim().length > 0
+            ? item.name
+            : "Player";
+
+      const entry = {
+        resultId: item.resultId,
+        score: item.score,
+        userId: item.userId,
+        username,
+        raceId: item.raceId,
+        clicksPerSecond: Number.isFinite(item.clicksPerSecond)
+          ? item.clicksPerSecond
+          : calculateClicksPerSecond(item.score),
+        finishedAt: item.finishedAt
+      };
+
+      top.push(entry);
+    }
+
+    top.sort((a, b) => {
+      const scoreDiff = (b.score ?? 0) - (a.score ?? 0);
+      if (scoreDiff !== 0) return scoreDiff;
+      return (a.finishedAt ?? 0) - (b.finishedAt ?? 0);
+    });
+
+    if (top.length > sanitizedLimit) {
+      top.length = sanitizedLimit;
+    }
+
+    lastEvaluatedKey = res.LastEvaluatedKey;
+  } while (lastEvaluatedKey);
+
+  return top;
 }
 
 function sendInitialState(ws) {
@@ -478,26 +534,9 @@ wss.on("connection", (ws, req) => {
   });
 });
 
-app.get("/api/race/:raceId/top", async (req, res) => {
-  try {
-    const q = await ddb.send(new QueryCommand({
-      TableName: DDB_TABLE,
-      KeyConditionExpression: "raceId = :r AND begins_with(playerId, :p)",
-      ExpressionAttributeValues: { ":r": `${req.params.raceId}`, ":p": "player#" },
-      Limit: 20
-    }));
-    res.json({ raceId: req.params.raceId, top: q.Items || [] });
-  } catch (err) {
-    console.error("Failed to load race leaderboard", err);
-    res.status(500).json({ error: "Failed to load leaderboard" });
-  }
-});
-
 app.get("/api/leaderboard", async (req, res) => {
   try {
-    const key = { raceId: "leaderboard", playerId: "global" };
-    const result = await ddb.send(new GetCommand({ TableName: DDB_TABLE, Key: key }));
-    const top = Array.isArray(result.Item?.top) ? result.Item.top.slice(0, 20) : [];
+    const top = await fetchTopResults({ limit: 20 });
     res.json({ top });
   } catch (err) {
     console.error("Failed to load global leaderboard", err);
