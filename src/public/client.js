@@ -17,6 +17,45 @@ const RACE_DURATION_SECONDS = 10;
 
 let running = false;
 let endsAt = 0;
+let joinLocked = false;
+let userHasName = false;
+
+function updateJoinFormVisibility() {
+  if (!nameForm) return;
+  if (userHasName) {
+    nameForm.classList.add("hidden");
+    nameInput.disabled = true;
+    setNameBtn.disabled = true;
+    return;
+  }
+  if (joinLocked) {
+    nameForm.classList.add("hidden");
+    nameInput.disabled = true;
+    setNameBtn.disabled = true;
+  } else {
+    nameForm.classList.remove("hidden");
+    nameInput.disabled = false;
+    setNameBtn.disabled = false;
+  }
+}
+
+function setJoinLock(lock) {
+  joinLocked = lock;
+  if (!userHasName) {
+    if (lock) {
+      nameStatus.textContent = "Rennen läuft gerade. Bitte warte auf die nächste Runde.";
+      nameStatus.className = "text-sm text-slate-300";
+      nameStatus.dataset.lockMessage = "true";
+    } else if (nameStatus.dataset.lockMessage === "true") {
+      nameStatus.textContent = "";
+      nameStatus.className = "text-sm";
+      delete nameStatus.dataset.lockMessage;
+    }
+  }
+  updateJoinFormVisibility();
+}
+
+updateJoinFormVisibility();
 
 function escapeHtml(s) {
   return (s || "").replace(/[&<>"']/g, c => ({
@@ -74,12 +113,15 @@ ws.onmessage = e => {
   }
 
   if (type === "name_ok") {
+    userHasName = true;
+    delete nameStatus.dataset.lockMessage;
     nameStatus.textContent = `Name set: ${data}`;
     nameStatus.className = "text-sm text-emerald-400";
-    if (nameForm) nameForm.classList.add("hidden");
+    updateJoinFormVisibility();
   }
 
   if (type === "error") {
+    delete nameStatus.dataset.lockMessage;
     nameStatus.textContent = data;
     nameStatus.className = "text-sm text-rose-400";
   }
@@ -101,12 +143,15 @@ ws.onmessage = e => {
   }
 
   if (type === "race_started") {
+    setJoinLock(true);
     running = true;
     endsAt = data.endsAt;
+    lobbyDiv.innerHTML = "";
     updateTimer();
   }
 
   if (type === "race_ended") {
+    setJoinLock(false);
     running = false;
     endsAt = 0;
 
@@ -126,24 +171,19 @@ ws.onmessage = e => {
       playAgainBtn.id = "playAgainBtn";
       timerEl.insertAdjacentElement("afterend", playAgainBtn);
     }
-
-    // Allow user to join again
-    nameStatus.textContent = "";
-    nameStatus.className = "text-sm";
-
-    // Clear board until next lobby/race update arrives
-    renderBoard([], RACE_DURATION_SECONDS);
   }
 
   if (type === "leaderboard") {
     running = data.running;
     endsAt = Date.now() + data.endsInMs;
+    setJoinLock(data.running);
     renderBoard(data.top, data.duration || RACE_DURATION_SECONDS);
     if (running) updateTimer();
   }
 };
 
 setNameBtn.onclick = () => {
+  if (joinLocked || userHasName) return;
   ws.send(JSON.stringify({ type: "set_name", data: nameInput.value }));
 };
 
