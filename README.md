@@ -11,8 +11,8 @@ A simple realtime click race game built with Express and WebSockets. Players set
 
 ## Create DynamoDB Table
 - Table Name: `ClickRaceData`
-    - PK: `raceId`
-    - SK: `playerId`
+    - PK: `resultId`
+    - SK: `score`
 
 ## Running
 
