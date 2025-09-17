@@ -194,7 +194,15 @@ ws.onmessage = e => {
     running = data.running;
     endsAt = Date.now() + data.endsInMs;
     setJoinLock(data.running);
-    renderBoard(data.top, data.duration || RACE_DURATION_SECONDS);
+    if (boardEl) {
+      if (data.hidden) {
+        boardEl.innerHTML = "";
+        boardEl.classList.add("hidden");
+      } else {
+        boardEl.classList.remove("hidden");
+        renderBoard(data.top || [], data.duration || RACE_DURATION_SECONDS);
+      }
+    }
     updateGameVisibility();
     if (running) updateTimer();
   }
