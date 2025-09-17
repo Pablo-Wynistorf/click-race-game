@@ -14,31 +14,76 @@
 
     <script>
         const list = document.getElementById("attendees");
+        const TOKEN_KEY = "cockpitAdminToken";
+        let adminToken = sessionStorage.getItem(TOKEN_KEY) || "";
 
-        // Attendees live updaten
-        const ws = new WebSocket(`ws://${location.host}`);
+        function ensureToken() {
+            if (adminToken) return true;
+            const input = window.prompt("Bitte Admin-Token eingeben:");
+            if (!input) return false;
+            adminToken = input.trim();
+            if (adminToken) sessionStorage.setItem(TOKEN_KEY, adminToken);
+            return !!adminToken;
+        }
+
+        const ESCAPE_MAP = { "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" };
+        function escapeHtml(value) {
+            return (value || "").replace(/[&<>"']/g, c => ESCAPE_MAP[c] || c);
+        }
+
+        ensureToken();
+
+        const protocol = location.protocol === "https:" ? "wss:" : "ws:";
+        const ws = new WebSocket(`${protocol}//${location.host}`);
         ws.onmessage = (ev) => {
             const msg = JSON.parse(ev.data);
             if (msg.type === "lobby_update") {
-                render(msg.data.attendees);
+                render(msg.data.attendees || []);
             }
         };
 
         function render(attendees) {
             list.innerHTML = attendees.map(p => `
-                <li class="flex justify-between items-center bg-slate-900 px-4 py-2 rounded">
-                    <span>${p.name}</span>
-                    <button onclick="blockPlayer('${p.userId}')"
-                        class="px-3 py-1 text-sm bg-rose-600 hover:bg-rose-500 rounded">
+                <li class="flex justify-between items-center bg-slate-900 px-4 py-2 rounded" data-user-id="${escapeHtml(p.userId)}">
+                    <span>${escapeHtml(p.name)}</span>
+                    <button class="px-3 py-1 text-sm bg-rose-600 hover:bg-rose-500 rounded" data-action="block">
                         Blockieren
                     </button>
                 </li>
             `).join("");
         }
 
-        function blockPlayer(id) {
-            fetch("/api/ban/" + id, { method: "POST" });
+        async function blockPlayer(id) {
+            if (!ensureToken()) {
+                alert("Admin-Token erforderlich.");
+                return;
+            }
+            try {
+                const res = await fetch(`/api/ban/${encodeURIComponent(id)}`, {
+                    method: "POST",
+                    headers: { Authorization: `Bearer ${adminToken}` },
+                    credentials: "same-origin"
+                });
+                if (res.status === 403 || res.status === 401 || res.status === 503) {
+                    sessionStorage.removeItem(TOKEN_KEY);
+                    adminToken = "";
+                    alert("Admin-Token ungültig. Bitte erneut eingeben.");
+                    ensureToken();
+                }
+            } catch (err) {
+                console.error("Block request failed", err);
+            }
         }
+
+        list.addEventListener("click", (event) => {
+            const target = event.target;
+            if (!(target instanceof HTMLButtonElement)) return;
+            if (target.dataset.action !== "block") return;
+            const parent = target.closest("[data-user-id]");
+            if (!parent) return;
+            const userId = parent.getAttribute("data-user-id");
+            if (userId) blockPlayer(userId);
+        });
     </script>
 </body>
 
