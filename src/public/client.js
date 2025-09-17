@@ -20,6 +20,19 @@ let endsAt = 0;
 let joinLocked = false;
 let userHasName = false;
 
+function updateGameVisibility() {
+  if (!gameEl) return;
+  const shouldShowGame = running && userHasName;
+  if (clickBtn) {
+    clickBtn.disabled = !shouldShowGame;
+  }
+  if (shouldShowGame) {
+    gameEl.classList.remove("hidden");
+  } else {
+    gameEl.classList.add("hidden");
+  }
+}
+
 function updateJoinFormVisibility() {
   if (!nameForm) return;
   if (userHasName) {
@@ -56,6 +69,7 @@ function setJoinLock(lock) {
 }
 
 updateJoinFormVisibility();
+updateGameVisibility();
 
 function escapeHtml(s) {
   return (s || "").replace(/[&<>"']/g, c => ({
@@ -90,18 +104,18 @@ function renderBoard(top, duration) {
 
 function updateTimer() {
   if (!running) {
-    gameEl.classList.add("hidden");
+    updateGameVisibility();
     return;
   }
   const ms = Math.max(0, endsAt - Date.now());
   if (ms <= 0) {
     running = false;
     timerEl.textContent = "Race ended!";
-    gameEl.classList.add("hidden");
+    updateGameVisibility();
     return;
   }
   timerEl.textContent = `Time left: ${(ms / 1000).toFixed(1)}s`;
-  gameEl.classList.remove("hidden");
+  updateGameVisibility();
   requestAnimationFrame(updateTimer);
 }
 
@@ -118,6 +132,7 @@ ws.onmessage = e => {
     nameStatus.textContent = `Name set: ${data}`;
     nameStatus.className = "text-sm text-emerald-400";
     updateJoinFormVisibility();
+    updateGameVisibility();
   }
 
   if (type === "error") {
@@ -148,6 +163,7 @@ ws.onmessage = e => {
     endsAt = data.endsAt;
     lobbyDiv.innerHTML = "";
     updateTimer();
+    updateGameVisibility();
   }
 
   if (type === "race_ended") {
@@ -157,7 +173,7 @@ ws.onmessage = e => {
 
     // Reset UI
     timerEl.textContent = "Rennen beendet!";
-    gameEl.classList.add("hidden");
+    updateGameVisibility();
 
     // Show Play Again button
     const playAgainBtn = document.createElement("button");
@@ -172,8 +188,6 @@ ws.onmessage = e => {
       timerEl.insertAdjacentElement("afterend", playAgainBtn);
     }
 
-    // Clear board until next lobby/race update arrives
-    renderBoard([], RACE_DURATION_SECONDS);
   }
 
   if (type === "leaderboard") {
@@ -181,6 +195,7 @@ ws.onmessage = e => {
     endsAt = Date.now() + data.endsInMs;
     setJoinLock(data.running);
     renderBoard(data.top, data.duration || RACE_DURATION_SECONDS);
+    updateGameVisibility();
     if (running) updateTimer();
   }
 };
@@ -191,7 +206,7 @@ setNameBtn.onclick = () => {
 };
 
 clickBtn.onclick = () => {
-  if (running) ws.send(JSON.stringify({ type: "click" }));
+  if (running && userHasName) ws.send(JSON.stringify({ type: "click" }));
 };
 
 // QR code rendering
