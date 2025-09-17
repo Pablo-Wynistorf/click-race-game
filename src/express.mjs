@@ -125,6 +125,8 @@ let raceEndsAt = 0;
 let running = false;
 let nextRaceStartAt = null;
 let raceTimer = null;
+let statsHidden = false;
+let hideStatsTimeout = null;
 
 function hasBannedCookie(cookieHeader = "") {
   return /(?:^|;\s*)banned=true(?:;|$)/i.test(cookieHeader);
@@ -137,21 +139,55 @@ function broadcast(type, data) {
   });
 }
 
+function clearHideStatsTimer() {
+  if (hideStatsTimeout) {
+    clearTimeout(hideStatsTimeout);
+    hideStatsTimeout = null;
+  }
+}
+
+function setStatsHidden(hidden) {
+  if (statsHidden === hidden) return;
+  statsHidden = hidden;
+  broadcastLeaderboard();
+}
+
+function scheduleStatsHide() {
+  clearHideStatsTimer();
+  if (!nextRaceStartAt) {
+    setStatsHidden(false);
+    return;
+  }
+  const hideDelay = nextRaceStartAt - Date.now() - 5000;
+  if (hideDelay <= 0) {
+    setStatsHidden(true);
+    return;
+  }
+  setStatsHidden(false);
+  hideStatsTimeout = setTimeout(() => {
+    hideStatsTimeout = null;
+    setStatsHidden(true);
+  }, hideDelay);
+}
+
 function getLeaderboardData() {
   const endsInMs = Math.max(0, raceEndsAt - Date.now());
-  const top = [...activePlayers.values()]
-    .map(p => ({ userId: p.userId, name: p.name, score: p.score }))
-    .sort((a, b) => {
-      if (b.score !== a.score) return b.score - a.score;
-      return a.userId.localeCompare(b.userId);
-    })
-    .slice(0, 20);
+  const top = statsHidden
+    ? []
+    : [...activePlayers.values()]
+        .map(p => ({ userId: p.userId, name: p.name, score: p.score }))
+        .sort((a, b) => {
+          if (b.score !== a.score) return b.score - a.score;
+          return a.userId.localeCompare(b.userId);
+        })
+        .slice(0, 20);
   return {
     raceId,
     running,
     endsInMs,
     duration: RACE_DURATION,
-    top
+    top,
+    hidden: statsHidden
   };
 }
 
@@ -187,6 +223,7 @@ function scheduleRaceIfNeeded() {
   if (!nextRaceStartAt) {
     nextRaceStartAt = Date.now() + 30_000;
     raceTimer = setInterval(checkRaceStart, 1000);
+    scheduleStatsHide();
   }
 }
 
@@ -200,6 +237,8 @@ function checkRaceStart() {
       nextRaceStartAt = null;
       clearInterval(raceTimer);
       raceTimer = null;
+      clearHideStatsTimer();
+      setStatsHidden(false);
       broadcastLobby();
     }
   } else {
@@ -223,6 +262,8 @@ function startRace() {
     clearInterval(raceTimer);
     raceTimer = null;
   }
+  clearHideStatsTimer();
+  setStatsHidden(false);
 
   broadcastLobby();
   broadcast("race_started", { raceId, endsAt: raceEndsAt });
@@ -266,6 +307,8 @@ async function updateGlobalLeaderboard(results, finishedAt, currentRaceId) {
 
 async function endRace() {
   running = false;
+  clearHideStatsTimer();
+  setStatsHidden(false);
   broadcast("race_ended", { raceId });
   broadcastLeaderboard();
 
