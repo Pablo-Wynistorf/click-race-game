@@ -22,8 +22,8 @@ PORT=3000 node server.js
 Environment variables:
 
 - `AWS_REGION` – AWS region of DynamoDB (default `us-east-1`)
-- `DDB_TABLE_SCORES` – table for scores (`ClickRaceScores` by default)
-- `DDB_TABLE_EVENTS` – table for events (`ClickRaceEvents` by default)
+- `DDB_TABLE` – table used to store race results and leaderboard cache (`ClickRaceData` by default)
 - `RACE_DURATION_SECONDS` – duration of the click phase (default 10)
+- `ADMIN_TOKEN` – shared secret required by `/api/ban/:id` cockpit actions
 
 Open `http://localhost:3000` in multiple browsers to play.
