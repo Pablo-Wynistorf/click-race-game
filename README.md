@@ -9,6 +9,11 @@ A simple realtime click race game built with Express and WebSockets. Players set
 - Profanity-filtered nicknames
 - Scores stored in DynamoDB
 
+## Create DynamoDB Table
+- Table Name: `ClickRaceData`
+    - PK: `raceId`
+    - SK: `playerId`
+
 ## Running
 
 ```bash
@@ -16,7 +21,7 @@ A simple realtime click race game built with Express and WebSockets. Players set
 npm install
 
 # run the server (expects AWS credentials with DynamoDB access)
-PORT=3000 node server.js
+node express.mjs
 ```
 
 Environment variables:
@@ -26,4 +31,4 @@ Environment variables:
 - `RACE_DURATION_SECONDS` – duration of the click phase (default 10)
 - `ADMIN_TOKEN` – shared secret required by `/api/ban/:id` cockpit actions
 
-Open `http://localhost:3000` in multiple browsers to play.
+Open `http://localhost` in multiple browsers to play.
