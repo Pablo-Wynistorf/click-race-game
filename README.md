@@ -10,9 +10,20 @@ A simple realtime click race game built with Express and WebSockets. Players set
 - Scores stored in DynamoDB
 
 ## Create DynamoDB Table
-- Table Name: `ClickRaceData`
-    - PK: `resultId`
-    - SK: `score`
+
+We will create a DynamoDB table to store race results and enable a global leaderboard.
+
+### Table: `ClickRaceData`
+
+- **Primary Key (Table KeySchema)**
+  - `resultId` (PK - String)
+  - `score` (SK - Number)
+
+- **Global Secondary Index (GSI)**
+  - **Index Name**: `GlobalLeaderboard`
+  - **Partition Key**: `pk` (String) – always set to `"GLOBAL"` for leaderboard entries
+  - **Sort Key**: `score` (Number)
+  - **Projection**: `ALL`
 
 ## Running
 
