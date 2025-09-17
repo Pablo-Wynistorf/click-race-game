@@ -17,7 +17,7 @@ const __dirname = path.dirname(__filename);
 
 const {
   PORT = 80,
-  AWS_REGION = "us-east-1",
+  AWS_REGION = "eu-central-1",
   DDB_TABLE = "ClickRaceData",
   RACE_DURATION_SECONDS = 10
 } = process.env;
