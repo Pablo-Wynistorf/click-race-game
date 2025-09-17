@@ -127,6 +127,7 @@ let nextRaceStartAt = null;
 let raceTimer = null;
 let statsHidden = false;
 let hideStatsTimeout = null;
+let lastLeaderboardSnapshot = null;
 
 function hasBannedCookie(cookieHeader = "") {
   return /(?:^|;\s*)banned=true(?:;|$)/i.test(cookieHeader);
@@ -152,6 +153,16 @@ function setStatsHidden(hidden) {
   broadcastLeaderboard();
 }
 
+function computeLeaderboardTop() {
+  return [...activePlayers.values()]
+    .map(p => ({ userId: p.userId, name: p.name, score: p.score }))
+    .sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score;
+      return a.userId.localeCompare(b.userId);
+    })
+    .slice(0, 20);
+}
+
 function scheduleStatsHide() {
   clearHideStatsTimer();
   if (!nextRaceStartAt) {
@@ -171,21 +182,26 @@ function scheduleStatsHide() {
 }
 
 function getLeaderboardData() {
-  const endsInMs = Math.max(0, raceEndsAt - Date.now());
-  const top = statsHidden
-    ? []
-    : [...activePlayers.values()]
-        .map(p => ({ userId: p.userId, name: p.name, score: p.score }))
-        .sort((a, b) => {
-          if (b.score !== a.score) return b.score - a.score;
-          return a.userId.localeCompare(b.userId);
-        })
-        .slice(0, 20);
+  const endsInMs = running ? Math.max(0, raceEndsAt - Date.now()) : 0;
+  let top = [];
+
+  if (!statsHidden) {
+    if (running) {
+      top = computeLeaderboardTop();
+    } else if (lastLeaderboardSnapshot) {
+      top = lastLeaderboardSnapshot.top;
+    }
+  }
+
+  const currentRaceId = running
+    ? raceId
+    : lastLeaderboardSnapshot?.raceId ?? raceId;
+
   return {
-    raceId,
+    raceId: currentRaceId,
     running,
     endsInMs,
-    duration: RACE_DURATION,
+    duration: lastLeaderboardSnapshot?.duration ?? RACE_DURATION,
     top,
     hidden: statsHidden
   };
@@ -247,6 +263,7 @@ function checkRaceStart() {
 }
 
 function startRace() {
+  lastLeaderboardSnapshot = null;
   running = true;
   raceId = nanoid(8);
   raceEndsAt = Date.now() + RACE_DURATION * 1000;
@@ -308,6 +325,16 @@ async function updateGlobalLeaderboard(results, finishedAt, currentRaceId) {
 async function endRace() {
   running = false;
   clearHideStatsTimer();
+  const finalTop = computeLeaderboardTop();
+  if (finalTop.length) {
+    lastLeaderboardSnapshot = {
+      raceId,
+      duration: RACE_DURATION,
+      top: finalTop
+    };
+  } else {
+    lastLeaderboardSnapshot = null;
+  }
   setStatsHidden(false);
   broadcast("race_ended", { raceId });
   broadcastLeaderboard();
